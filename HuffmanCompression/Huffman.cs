@@ -10,35 +10,36 @@ namespace HuffmanCompression
 {
     public class Huffman
     {
-        private Dictionary<char, TreeNode> _dict = new Dictionary<char, TreeNode>();
+        private Dictionary<byte, TreeNode> _dict = new Dictionary<byte, TreeNode>();
         private TreeNode _root = null;
         private int[] _masks = new int[] { 0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767, 65535 };
-        
+
         public void Compress(string inFile, string outFile)
         {
-            var content = File.ReadAllText(inFile);
+            var content = File.ReadAllBytes(inFile);
             var freqTable = BuildFrequencyTable(content);
             _root = BuildHuffmanTree(freqTable);
             UpdateTree(_root, "", 0, 0);
-            
+
             var len = 0;
             var compress = Compress(content, out len);
             var header = GenerateHeader(len);
-            var fileContent = header + compress;
+            var fileContent = new List<byte>();
+            fileContent.AddRange(header);
+            fileContent.AddRange(compress);
 
-            File.WriteAllText(outFile, fileContent
-                );
+            File.WriteAllBytes(outFile, fileContent.ToArray());
         }
 
         public void Decompress(string inFile, string outFile)
         {
-            var content = File.ReadAllText(inFile);
+            var content = File.ReadAllBytes(inFile);
             var len = 0;
             var headerSize = 0;
             var dict = DecompressHeader(content, out len, out headerSize);
 
-            var data = content.Substring(headerSize, content.Length - headerSize);
-            var origin = new StringBuilder();
+            var data = ByteUtils.GetBytes(content, headerSize, content.Length - headerSize);
+            var origin = new List<byte>();
             var buffer = 0;
             var decprLen = 0;
 
@@ -58,27 +59,24 @@ namespace HuffmanCompression
 
                     if (node != null)
                     {
-                        origin.Append(node.Symbol);
+                        origin.Add(node.Symbol);
                         curCode = 0;
                         curLen = 0;
                     }
 
                     decprLen++;
+                    if (decprLen == len)
+                        break;
                 }
-
-                if (decprLen == len)
-                    break;
             }
-            var fileContent = origin.ToString();
-            origin.Clear();
 
-            File.WriteAllText(outFile, fileContent);
+            File.WriteAllBytes(outFile, origin.ToArray());
         }
 
         #region Compression preparation methods
-        private string Compress(string content, out int len)
+        private List<byte> Compress(byte[] content, out int len)
         {
-            var compressedStr = new StringBuilder();
+            var compression = new List<byte>();
             var totalLength = 0;
             var runLen = 0;
             var buffer = 0;
@@ -96,7 +94,7 @@ namespace HuffmanCompression
                 {
                     var shftR = nRightBits + ((nBytes - j - 1) << 3);
                     var c = buffer >> shftR;
-                    compressedStr.Append((char)c);
+                    compression.Add((byte)c);
                     buffer = buffer & _masks[shftR];
                 }
 
@@ -108,28 +106,32 @@ namespace HuffmanCompression
             {
                 var pad = 8 - totalLength % 8;
                 buffer = buffer << pad;
+                compression.Add((byte)buffer);
             }
 
             len = totalLength;
-            return compressedStr.ToString();
+            return compression;
         }
 
-        private string GenerateHeader(int length)
+        private List<byte> GenerateHeader(int length)
         {
             if (_dict != null || _dict.Count != 0)
             {
-                var sb = new StringBuilder();
-                sb.Append("QPK");
-                var dataSize = System.Text.Encoding.ASCII.GetString(BitConverter.GetBytes(length));
-                sb.Append(dataSize);
-                var nTuples = (char)_dict.Count;
-                sb.Append(nTuples);
+                var arr = new List<byte>();
+                arr.Add((byte)'Q');
+                arr.Add((byte)'P');
+                arr.Add((byte)'K');
+
+                var dataSize = BitConverter.GetBytes(length);
+                arr.AddRange(dataSize);
+                var nTuples = (byte)_dict.Count;
+                arr.Add(nTuples);
                 foreach (var node in _dict)
                 {
-                    var cArr = node.Value.ToCharArray();
-                    sb.Append(cArr);
+                    var cArr = node.Value.ToByteArray();
+                    arr.AddRange(cArr);
                 }
-                return sb.ToString();
+                return arr;
             }
 
             return null;
@@ -144,7 +146,7 @@ namespace HuffmanCompression
                 _dict.Add(node.Symbol, node);
 
 #if Debug
-                Console.WriteLine("{0} ({1}): {2} - {3}", node.Symbol, (int)node.Symbol, node.Frequency, code);
+                Console.WriteLine("{0} ({1}): Freq: {2}; Code: {3} ({4})", (char)node.Symbol, node.Symbol, node.Frequency, code, bCode);
 #endif
             }
             else
@@ -157,7 +159,7 @@ namespace HuffmanCompression
             }
         }
 
-        private TreeNode BuildHuffmanTree(List<KeyValuePair<char, int>> freqTable)
+        private TreeNode BuildHuffmanTree(List<KeyValuePair<byte, int>> freqTable)
         {
             var mainStack = new Stack<TreeNode>();
             for (int i = 0; i < freqTable.Count; i++)
@@ -194,7 +196,7 @@ namespace HuffmanCompression
             return root;
         }
 
-        private List<KeyValuePair<char, int>> BuildFrequencyTable(string content)
+        private List<KeyValuePair<byte, int>> BuildFrequencyTable(byte[] content)
         {
             var arr = new int[256];
             for (int i = 0; i < content.Length; i++)
@@ -202,11 +204,11 @@ namespace HuffmanCompression
                 arr[content[i]]++;
             }
 
-            var dict = new Dictionary<char, int>();
+            var dict = new Dictionary<byte, int>();
             for (int i = 0; i < arr.Length; i++)
             {
                 if (arr[i] > 0)
-                    dict.Add((char)i, arr[i]);
+                    dict.Add((byte)i, arr[i]);
             }
 
             var result = dict.ToList().OrderByDescending(c => c.Value).ToList();
@@ -216,9 +218,9 @@ namespace HuffmanCompression
         #endregion
 
         #region Decompression preparation methods
-        private Dictionary<char, TreeNode> DecompressHeader(string content, out int zipLen, out int headerSize)
+        private Dictionary<byte, TreeNode> DecompressHeader(byte[] content, out int zipLen, out int headerSize)
         {
-            if (content.Substring(0, 3) != "QPK")
+            if (content[0] != 'Q' || content[1] != 'P' || content[2] != 'K')
             {
                 zipLen = 0;
                 headerSize = 0;
@@ -227,22 +229,16 @@ namespace HuffmanCompression
             var dataIndex = 8;
             var blockSize = 6;
 
-            var sizeData = content.Substring(3, 4);
-            var size = 0;
-            var arBytes = sizeData.ToCharArray();
-            for (int i = 0; i < 4; i++)
-            {
-                size = size << 8 | arBytes[3 - i];
-            }
-            zipLen = size;
+            var sizeData = ByteUtils.GetBytes(content, 3, 4);
+            zipLen = ByteUtils.GetInt(sizeData);
 
             var nTuples = content[7];
-            var dict = new Dictionary<char, TreeNode>();
+            var dict = new Dictionary<byte, TreeNode>();
             for (int i = 0; i < nTuples; i++)
             {
-                var sub = content.Substring(dataIndex + i * blockSize, blockSize);
+                var chunk = ByteUtils.GetBytes(content, dataIndex + i * blockSize, blockSize);
                 var node = new TreeNode();
-                node.LoadChars(sub.ToCharArray());
+                node.Load(chunk);
                 dict.Add(node.Symbol, node);
             }
 
@@ -250,7 +246,7 @@ namespace HuffmanCompression
             return dict;
         }
 
-        private TreeNode GetNode(Dictionary<char, TreeNode> dict, int code, int length)
+        private TreeNode GetNode(Dictionary<byte, TreeNode> dict, int code, int length)
         {
             foreach (var item in dict)
             {
