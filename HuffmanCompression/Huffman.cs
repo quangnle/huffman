@@ -12,7 +12,7 @@ namespace HuffmanCompression
     {
         private Dictionary<byte, TreeNode> _dict = new Dictionary<byte, TreeNode>();
         private TreeNode _root = null;
-        private int[] _masks = new int[] { 0, 1, 3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191, 16383, 32767, 65535 };
+        private int[] _masks = new int[] { 0x0, 0x1, 0x3, 0x7, 0xF, 0x1F, 0x3F, 0x7F, 0xFF, 0x1FF, 0x3FF, 0x7FF, 0xFFF, 0x1FFF, 0x3FFF, 0x7FFF, 0xFFFF };
 
         public void Compress(string inFile, string outFile)
         {
