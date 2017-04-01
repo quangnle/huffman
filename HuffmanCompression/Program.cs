@@ -12,7 +12,7 @@ namespace HuffmanCompression
     {   
         static void Main(string[] args)
         {
-            var fileName = "test.txt";
+            var fileName = "test2.txt";
 
             var h = new Huffman();
             h.Compress(fileName, "cmpr.qpk");

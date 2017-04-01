@@ -16,16 +16,16 @@ namespace HuffmanCompression
         public TreeNode Left { get; set; }
         public TreeNode Right { get; set; }
 
-        public byte[] ToByteArray()
+        public char[] ToCharArray()
         {
-            byte[] arr = new byte[6];
-            arr[0] = (byte)this.Symbol;
+            char[] arr = new char[6];
+            arr[0] = this.Symbol;
             var byteCode = BitConverter.GetBytes(this.BinaryCode);
-            arr[1] = byteCode[0];
-            arr[2] = byteCode[1];
-            arr[3] = byteCode[2];
-            arr[4] = byteCode[3];
-            arr[5] = (byte)Length;
+            arr[1] = (char)byteCode[0];
+            arr[2] = (char)byteCode[1];
+            arr[3] = (char)byteCode[2];
+            arr[4] = (char)byteCode[3];
+            arr[5] = (char)Length;
             return arr;
         }
 

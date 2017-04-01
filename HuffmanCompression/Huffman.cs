@@ -1,4 +1,5 @@
-﻿using System;
+﻿#define Debug
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -25,7 +26,8 @@ namespace HuffmanCompression
             var header = GenerateHeader(len);
             var fileContent = header + compress;
 
-            File.WriteAllText(outFile, fileContent);
+            File.WriteAllText(outFile, fileContent
+                );
         }
 
         public void Decompress(string inFile, string outFile)
@@ -64,7 +66,8 @@ namespace HuffmanCompression
                     decprLen++;
                 }
 
-                if (decprLen == len) break;
+                if (decprLen == len)
+                    break;
             }
             var fileContent = origin.ToString();
             origin.Clear();
@@ -117,14 +120,14 @@ namespace HuffmanCompression
             {
                 var sb = new StringBuilder();
                 sb.Append("QPK");
-                var dataSize = System.Text.Encoding.Default.GetString(BitConverter.GetBytes(length));
+                var dataSize = System.Text.Encoding.ASCII.GetString(BitConverter.GetBytes(length));
                 sb.Append(dataSize);
                 var nTuples = (char)_dict.Count;
                 sb.Append(nTuples);
                 foreach (var node in _dict)
                 {
-                    var item = System.Text.Encoding.Default.GetString(node.Value.ToByteArray());
-                    sb.Append(item);
+                    var cArr = node.Value.ToCharArray();
+                    sb.Append(cArr);
                 }
                 return sb.ToString();
             }
