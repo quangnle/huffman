@@ -37,5 +37,15 @@ namespace HuffmanCompression
             }
             return result;
         }
+
+        public static long GetLong(byte[] arr)
+        {
+            long result = 0;
+            for (int i = 0; i < arr.Length; i++)
+            {
+                result = result << 8 | arr[arr.Length - i - 1];
+            }
+            return result;
+        }
     }
 }
